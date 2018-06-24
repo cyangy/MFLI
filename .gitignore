@@ -1,0 +1,7 @@
+/.vs
+*.pfx
+/MFLI-GUI/bin/Release/MFLI-GUI.pdb
+/MFLI-GUI/bin/Release/app.publish/*
+/MFLI-GUI/obj/*
+ziDotNETCore-win64.dll
+ziDotNET-win64.dll

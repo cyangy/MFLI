@@ -627,6 +627,9 @@ namespace MFLI_GUI
                 StartMeasure.Text = "停止测量";//变换按钮文字
                 this.richTextBoxShow.Text = ""; //清空显示文本窗口
                                                 //先声明一个写入文件流根据情况看是否使用它,因为在if条件块中声明的是局部的，对外不可见
+                //将变量在循环外声明
+                ZIDemodSample sample; //MFLI 返回的 sample
+                String SampleOut; //显示到 richTextBox 中的实时测量信息
 
                 //不论是否要保存文件,都实例化要操作文件，否则不通过编译, 想不到更好的办法解决。但是这样的话不管保存文件与否每次点击测量都会生成一个空文件，只能在测量停止后决定是否删除
                 //--http://hovertree.com/hvtart/bjae/jbj59xoe.htm
@@ -635,8 +638,8 @@ namespace MFLI_GUI
                 {
                     GlobalVars.sw = new StreamWriter(GlobalVars.SaveMeasureRealustToFile_Whole, true, Encoding.Default);//不指定编码或制定为其它编码 用Excel打开文件后不能正确排行
                 }*/
-                    //停止测量时如果测量记数器立即清零，会出现停止测量后又出现 测量次数:0的情况,所以在每次测量前再置零
-                   GlobalVars.CurrentMeasuretimes = 0;
+                //停止测量时如果测量记数器立即清零，会出现停止测量后又出现 测量次数:0的情况,所以在每次测量前再置零
+                GlobalVars.CurrentMeasuretimes = 0;
                   //使用后台同步更新测量结果
                 _worker = new BackgroundWorker();
                 _worker.WorkerSupportsCancellation = true;
@@ -692,9 +695,10 @@ namespace MFLI_GUI
                             System.Threading.Thread.Sleep(500); //等待500ms 完成文件创建
                         }
                         ++GlobalVars.CurrentMeasuretimes;
+                        GlobalVars.CurrentTime = DateTime.Now.ToString("  yyyy-MM-dd###HH:mm:ss.fff  "); //当前时间  可使用 sample.timeStamp÷clockbase  得到 ;  LabOneProgrammingManual 页面搜索 timestamp : The instrument's timestamp of the measured demodulator data uint64. Divide by the instrument's clockbase (/dev123/clockbase) to obtain the time in seconds.
                         System.Threading.Thread.Sleep((Int32)IntervalBetweenTwoMeasure); //两次测量间隔
-                        ZIDemodSample sample = newMFLI.GetDemodSample(daq, GlobalVars.dev);
-                        String SampleOut = "次数:"+MyValueToStringFormat("{0:F0}",GlobalVars.CurrentMeasuretimes).PadLeft(5,' ')+"   频率: " + sample.frequency + "   " + "X值: " + MyValueToStringFormat("{0:E15}", sample.x) + "   " + "Y值: " + MyValueToStringFormat("{0:E15}", sample.y) + "   " +"R值: " + MyValueToStringFormat("{0:E15}", Math.Sqrt(sample.x* sample.x + sample.y*sample.y)) + "   " + "相位: " + MyValueToStringFormat("{0:E15}",sample.phase) + "\n";
+                        sample = newMFLI.GetDemodSample(daq, GlobalVars.dev);
+                        SampleOut = "时间"+ GlobalVars.CurrentTime + "次数:"+MyValueToStringFormat("{0:F0}",GlobalVars.CurrentMeasuretimes).PadLeft(5,' ')+"   频率: " + sample.frequency + "   " + "X值: " + MyValueToStringFormat("{0:E15}", sample.x) + "   " + "Y值: " + MyValueToStringFormat("{0:E15}", sample.y) + "   " +"R值: " + MyValueToStringFormat("{0:E15}", Math.Sqrt(sample.x* sample.x + sample.y*sample.y)) + "   " + "相位: " + MyValueToStringFormat("{0:E15}",sample.phase) + "\n";
                         SetrichTextBoxShowTextSafly(this.richTextBoxShow,SampleOut);
                         //this.richTextBoxShow.Text += SampleOut; //编译不通过，线程不安全
                         if (GlobalVars.isSaveToFile == 1 && GlobalVars.isNewStreamWriterCreated) //如果确认要保存文件,保存文件
@@ -703,10 +707,10 @@ namespace MFLI_GUI
                             String fileExtension= Path.GetExtension(GlobalVars.SaveMeasureRealustToFile_Whole);
                             if (fileExtension == ".csv") //csv 文件
                             {
-                                SampleOut = MyValueToStringFormat("{0:F0}", GlobalVars.CurrentMeasuretimes) + "," + sample.frequency + "," + MyValueToStringFormat("{0:E15}", sample.x) + "," + MyValueToStringFormat("{0:E15}", sample.y) + "," + MyValueToStringFormat("{0:E15}", Math.Sqrt(sample.x * sample.x + sample.y * sample.y)) + "," + MyValueToStringFormat("{0:E15}", sample.phase); //不用在最后加换行,不然会有间隔空行
-                                if (GlobalVars.CurrentMeasuretimes == 1) //csv文件第一行
+                                SampleOut = GlobalVars.CurrentTime + MyValueToStringFormat("{0:F0}", GlobalVars.CurrentMeasuretimes) + "," + sample.frequency + "," + MyValueToStringFormat("{0:E15}", sample.x) + "," + MyValueToStringFormat("{0:E15}", sample.y) + "," + MyValueToStringFormat("{0:E15}", Math.Sqrt(sample.x * sample.x + sample.y * sample.y)) + "," + MyValueToStringFormat("{0:E15}", sample.phase); //不用在最后加换行,不然会有间隔空行
+                                if (1 == GlobalVars.CurrentMeasuretimes) //csv文件第一行
                                 {
-                                    GlobalVars.sw.WriteLine("次数,频率,X值,Y值,R值,相位");//不用在最后加换行,不然会有多空行
+                                    GlobalVars.sw.WriteLine("时间,次数,频率,X值,Y值,R值,相位");//不用在最后加换行,不然会有多空行
                                     GlobalVars.sw.WriteLine(SampleOut);
                                 }
                                 else
@@ -1367,6 +1371,7 @@ namespace MFLI_GUI
         public static long  isSaveToFile = 0;//是否保存测量结果到文件 本应为bool 但为了适应 CheckBoxStatuAdjust 函数 将其定义为long
         public static Int32 MaxLinesInRichTextBox = 100;
         public static Int32 CurrentMeasuretimes = 0; //第几次测量
+        public static String CurrentTime = null; //第几次测量
         public static String SaveMeasureRealustToFile_Directory = AppDomain.CurrentDomain.BaseDirectory; //保存文件文件夹--https://stackoverflow.com/questions/97312/how-do-i-find-out-what-directory-my-console-app-is-running-in-with-c
         public static String SaveMeasureRealustToFile_FileName = DateTime.Now.ToString("yyyy-MM-dd-HH-mm-ss-")+"MFLI_Data.csv"; //保存文件文件名
         public static String SaveMeasureRealustToFile_Whole = SaveMeasureRealustToFile_Directory + SaveMeasureRealustToFile_FileName;//完整包含路径文件名
